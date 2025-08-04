@@ -1,0 +1,210 @@
+# Docker Compose phiên bản cuối cùng cho dự án ETL
+services:
+  #----------------------------------------------------------------
+  # Service PostgreSQL - Đóng vai trò Data Warehouse
+  #----------------------------------------------------------------
+  postgres-dwh:
+    image: postgres:15
+    container_name: postgres-datawarehouse
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DWH_DB:-dwh}
+      POSTGRES_USER: ${POSTGRES_DWH_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_DWH_PASSWORD:-Aa12345}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-dwh-data:/var/lib/postgresql/data
+    networks:
+      - data-net
+
+  #----------------------------------------------------------------
+  # Cụm Apache Spark
+  #----------------------------------------------------------------
+  spark-master:
+    image: bitnami/spark:3.5.1
+    container_name: spark-master
+    restart: always
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    volumes:
+      - ./spark-data/app:/opt/bitnami/spark/app
+      - ./spark-data/jars:/opt/bitnami/spark/external-jars
+      - ./data:/data
+      - ./spark-data/eventlogs:/opt/bitnami/spark/eventlogs
+    environment:
+      - SPARK_MODE=master
+      - SPARK_MASTER_HOST=spark-master
+    networks:
+      - data-net
+
+  spark-worker:
+    image: bitnami/spark:3.5.1
+    container_name: spark-worker-1
+    depends_on:
+      - spark-master
+    restart: always
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./spark-data/app:/opt/bitnami/spark/app
+      - ./spark-data/jars:/opt/bitnami/spark/external-jars
+      - ./data:/data
+      - ./spark-data/eventlogs:/opt/bitnami/spark/eventlogs
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_CORES=2
+      - SPARK_WORKER_MEMORY=2G
+    networks:
+      - data-net
+
+  spark-history-server:
+    image: bitnami/spark:3.5.1
+    container_name: spark-history-server
+    depends_on:
+      - spark-master
+    restart: always
+    ports:
+      - "18080:18080"
+    volumes:
+      - ./spark-data/eventlogs:/opt/bitnami/spark/eventlogs
+    command: /opt/bitnami/spark/sbin/start-history-server.sh
+    environment:
+      - SPARK_HISTORY_OPTS=-Dspark.history.fs.logDirectory=/opt/bitnami/spark/eventlogs
+    networks:
+      - data-net
+      
+  #----------------------------------------------------------------
+  # Cụm Apache Airflow
+  #----------------------------------------------------------------
+  postgres-airflow-db:
+    image: postgres:15
+    container_name: postgres-airflow-db
+    restart: always
+    environment:
+      POSTGRES_DB: ${AIRFLOW_DB:-airflow}
+      POSTGRES_USER: ${AIRFLOW_DB_USER:-airflow}
+      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD:-Aa12345}
+    volumes:
+      - postgres-airflow-data:/var/lib/postgresql/data
+    networks:
+      - data-net
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${AIRFLOW_DB_USER:-airflow}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7.2
+    container_name: redis-broker
+    restart: always
+    networks:
+      - data-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  airflow-init:
+    build: ./airflow
+    container_name: airflow-init
+    depends_on:
+      postgres-airflow-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-Aa12345}@postgres-airflow-db:5432/${AIRFLOW_DB:-airflow}
+      - AIRFLOW__CELERY__BROKER_URL=redis://redis:6379/0
+      - AIRFLOW__CELERY__RESULT_BACKEND=db+postgresql://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-Aa12345}@postgres-airflow-db:5432/${AIRFLOW_DB:-airflow}
+    command:
+      - "bash"
+      - "-c"
+      - "airflow db migrate && airflow users create --username ${AIRFLOW_ADMIN_USER:-admin} --firstname Admin --lastname User --role Admin --password ${AIRFLOW_ADMIN_PASSWORD:-Aa12345} --email admin@example.com"
+    networks:
+      - data-net
+
+  airflow-webserver:
+    build: ./airflow
+    container_name: airflow-webserver
+    restart: always
+    depends_on:
+      - airflow-init
+    ports:
+      - "8088:8080"
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-Aa12345}@postgres-airflow-db:5432/${AIRFLOW_DB:-airflow}
+      - AIRFLOW__CELERY__BROKER_URL=redis://redis:6379/0
+      - AIRFLOW__CELERY__RESULT_BACKEND=db+postgresql://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-Aa12345}@postgres-airflow-db:5432/${AIRFLOW_DB:-airflow}
+      - AIRFLOW_CONN_SPARK_DEFAULT=spark://?host=spark-master&port=7077
+    command: airflow webserver
+    networks:
+      - data-net
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  airflow-scheduler:
+    build: ./airflow
+    container_name: airflow-scheduler
+    restart: always
+    depends_on:
+      - airflow-webserver
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-Aa12345}@postgres-airflow-db:5432/${AIRFLOW_DB:-airflow}
+      - AIRFLOW__CELERY__BROKER_URL=redis://redis:6379/0
+      - AIRFLOW__CELERY__RESULT_BACKEND=db+postgresql://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-Aa12345}@postgres-airflow-db:5432/${AIRFLOW_DB:-airflow}
+      - AIRFLOW_CONN_SPARK_DEFAULT=spark://?host=spark-master&port=7077
+    command: airflow scheduler
+    networks:
+      - data-net
+
+  airflow-worker:
+    build: ./airflow
+    container_name: airflow-worker
+    restart: always
+    depends_on:
+      - airflow-scheduler
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+      - ./spark-data/app:/opt/bitnami/spark/app
+      - ./spark-data/jars:/opt/bitnami/spark/external-jars
+      - ./data:/data
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-Aa12345}@postgres-airflow-db:5432/${AIRFLOW_DB:-airflow}
+      - AIRFLOW__CELERY__BROKER_URL=redis://redis:6379/0
+      - AIRFLOW__CELERY__RESULT_BACKEND=db+postgresql://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-Aa12345}@postgres-airflow-db:5432/${AIRFLOW_DB:-airflow}
+      - AIRFLOW_CONN_SPARK_DEFAULT=spark://?host=spark-master&port=7077
+    command: airflow celery worker
+    networks:
+      - data-net
+
+# Định nghĩa network chung
+networks:
+  data-net:
+    driver: bridge
+
+# Định nghĩa volumes để lưu trữ dữ liệu lâu dài
+volumes:
+  postgres-dwh-data:
+  postgres-airflow-data:
