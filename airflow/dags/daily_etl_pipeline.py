@@ -49,8 +49,8 @@ with DAG(
     # --- Định nghĩa Task ---
     submit_spark_etl_job = SparkSubmitOperator(
         task_id="submit_spark_json_to_delta_job",
-        conn_id="spark_default",
-
+        #conn_id="spark_default",
+        
         # Đường dẫn đến file JAR bên trong container Spark
         application="/opt/bitnami/spark/app/etl_project/target/scala-2.12/etl_project_2.12-0.1.0-SNAPSHOT.jar",
 
@@ -60,10 +60,9 @@ with DAG(
         # Delta lake package
         packages="io.delta:delta-spark_2.12:3.1.0",
         
-        master="spark://spark-master:7077",
-
         # Cấu hình cho Spark, đặc biệt là cho Delta Lake
         conf={
+            "spark.master": "spark://spark-master:7077",
             "spark.sql.extensions": "io.delta.sql.DeltaSparkSessionExtension",
             "spark.sql.catalog.spark_catalog": "org.apache.spark.sql.delta.catalog.DeltaCatalog",
             "spark.sql.adaptive.enabled": "true",
