@@ -3,7 +3,6 @@ data/log_result/
 __pycache__/
 *.pyc
 .venv/
-.env
 data/
 output/
 logs/
