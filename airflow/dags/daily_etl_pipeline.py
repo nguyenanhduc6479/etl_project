@@ -59,10 +59,11 @@ with DAG(
         
         # Delta lake package
         packages="io.delta:delta-spark_2.12:3.1.0",
+        
+        master="spark://spark-master:7077",
 
         # Cấu hình cho Spark, đặc biệt là cho Delta Lake
         conf={
-            "spark.master": "spark://spark-master:7077",
             "spark.sql.extensions": "io.delta.sql.DeltaSparkSessionExtension",
             "spark.sql.catalog.spark_catalog": "org.apache.spark.sql.delta.catalog.DeltaCatalog",
             "spark.sql.adaptive.enabled": "true",
@@ -81,7 +82,7 @@ with DAG(
         num_executors=1,
         
         # Timeout
-        execution_timeout = timedelta(hours=1)
+        execution_timeout = timedelta(minutes=2)
         
     )
     

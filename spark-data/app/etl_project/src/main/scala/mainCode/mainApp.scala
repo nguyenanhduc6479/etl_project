@@ -29,13 +29,13 @@ object mainApp {
     )
 
     try{
-      val df = readFile.read_data(
+      val df = readFile.readData(
         sourcePath = sourcePath,
         fileType = "json")
 
       val selectDF = df.select("_source.*")
 
-      saveTable.save_to_delta(
+      saveTable.savetoDelta(
         df = selectDF,
         mode = "overwrite",
         savePath = savePath
