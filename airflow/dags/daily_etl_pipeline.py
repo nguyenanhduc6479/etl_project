@@ -49,7 +49,7 @@ with DAG(
     # --- Định nghĩa Task ---
     submit_spark_etl_job = SparkSubmitOperator(
         task_id="submit_spark_json_to_delta_job",
-        #conn_id="spark_default",
+        conn_id="spark_default",
         
         # Đường dẫn đến file JAR bên trong container Spark
         application="/opt/bitnami/spark/app/etl_project/target/scala-2.12/etl_project_2.12-0.1.0-SNAPSHOT.jar",
@@ -58,15 +58,17 @@ with DAG(
         java_class="mainCode.mainApp",
         
         # Delta lake package
-        packages="io.delta:delta-spark_2.12:3.1.0",
+        # packages="io.delta:delta-spark_2.12:3.1.0",
         
         # Cấu hình cho Spark, đặc biệt là cho Delta Lake
         conf={
-            "spark.master": "spark://spark-master:7077",
+            # "spark.master": "spark://spark-master:7077",
             "spark.sql.extensions": "io.delta.sql.DeltaSparkSessionExtension",
             "spark.sql.catalog.spark_catalog": "org.apache.spark.sql.delta.catalog.DeltaCatalog",
             "spark.sql.adaptive.enabled": "true",
             "spark.sql.adaptive.coalescePartitions.enabled": "true",
+            "spark.eventLog.enabled": "true",
+            "spark.eventLog.dir": "file:///opt/bitnami/spark/eventlogs",
         },
 
         # Truyền tham số với đường dẫn tương đối bên trong container
@@ -84,6 +86,55 @@ with DAG(
         execution_timeout = timedelta(minutes=2)
         
     )
+    
+    
+    
+    # submit_spark_etl_job = BashOperator(
+    #     task_id="submit_spark_json_to_delta_job",
+    #     bash_command="""
+    #     set -e
+        
+    #     # Variables
+        
+    #     SPARK_HOME=/opt/bitnami/spark
+    #     INPUT_FILE="/data/log_content/20220402.json"
+    #     OUTPUT_PATH="/data/log_result/20220402"
+    #     JAR_PATH="/opt/bitnami/spark/app/etl_project/target/scala-2.12/etl_project_2.12-0.1.0-SNAPSHOT.jar"
+        
+    #     echo "========================================"
+    #     echo "Running ETL for date: 20220402"
+    #     echo "========================================"
+    #     echo "Input: $INPUT_FILE"
+    #     echo "Output: $OUTPUT_PATH"
+    #     echo ""
+        
+    #     # Check if JAR exists
+    #     if [ ! -f "$JAR_PATH" ]; then
+    #         echo "ERROR: JAR file not found at $JAR_PATH"
+    #         exit 1
+    #     fi
+        
+                    
+    #     # Execute spark-submit from the Spark master container
+    #     docker exec spark-master spark-submit \
+    #         --master spark://spark-master:7077 \
+    #         --packages io.delta:delta-spark_2.12:3.1.0 \
+    #         --conf "spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension" \
+    #         --conf "spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog" \
+    #         --conf "spark.sql.adaptive.enabled=true" \
+    #         --conf "spark.sql.adaptive.coalescePartitions.enabled=true" \
+    #         --driver-memory 1g \
+    #         --executor-memory 2g \
+    #         --num-executors 1 \
+    #         --class mainCode.mainApp \
+    #         "$JAR_PATH" \
+    #         "$INPUT_FILE" \
+    #         "$OUTPUT_FILE"
+        
+    #     echo ""
+    #     echo "Spark job completed!"
+    #     """,
+    # )
     
     # Task 3: Validate Delta Lake output
     validate_output = BashOperator(

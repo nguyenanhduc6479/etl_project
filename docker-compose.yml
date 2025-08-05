@@ -146,7 +146,7 @@ services:
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-Aa12345}@postgres-airflow-db:5432/${AIRFLOW_DB:-airflow}
       - AIRFLOW__CELERY__BROKER_URL=redis://redis:6379/0
       - AIRFLOW__CELERY__RESULT_BACKEND=db+postgresql://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-Aa12345}@postgres-airflow-db:5432/${AIRFLOW_DB:-airflow}
-      - AIRFLOW_CONN_SPARK_DEFAULT=spark://?host=spark-master&port=7077
+      - AIRFLOW_CONN_SPARK_DEFAULT="spark://spark-master:7077"
     command: airflow webserver
     networks:
       - data-net
@@ -171,7 +171,7 @@ services:
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-Aa12345}@postgres-airflow-db:5432/${AIRFLOW_DB:-airflow}
       - AIRFLOW__CELERY__BROKER_URL=redis://redis:6379/0
       - AIRFLOW__CELERY__RESULT_BACKEND=db+postgresql://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-Aa12345}@postgres-airflow-db:5432/${AIRFLOW_DB:-airflow}
-      - AIRFLOW_CONN_SPARK_DEFAULT=spark://?host=spark-master&port=7077
+      - AIRFLOW_CONN_SPARK_DEFAULT="spark://spark-master:7077"
     command: airflow scheduler
     networks:
       - data-net
@@ -194,7 +194,7 @@ services:
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-Aa12345}@postgres-airflow-db:5432/${AIRFLOW_DB:-airflow}
       - AIRFLOW__CELERY__BROKER_URL=redis://redis:6379/0
       - AIRFLOW__CELERY__RESULT_BACKEND=db+postgresql://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-Aa12345}@postgres-airflow-db:5432/${AIRFLOW_DB:-airflow}
-      - AIRFLOW_CONN_SPARK_DEFAULT=spark://?host=spark-master&port=7077
+      - AIRFLOW_CONN_SPARK_DEFAULT="spark://spark-master:7077"
     command: airflow celery worker
     networks:
       - data-net
