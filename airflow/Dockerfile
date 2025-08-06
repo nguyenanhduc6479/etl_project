@@ -4,17 +4,30 @@ FROM apache/airflow:2.9.2
 # Chuyển sang user root để có quyền cài đặt các gói hệ thống
 USER root
 
-# Cài đặt Java Runtime Environment (JRE) - cần thiết để chạy spark-submit
-# SỬA LỖI: Dùng 'default-jre-headless' để tương thích với nhiều phiên bản HĐH
+# Cài đặt Java và các tools hữu ích
 RUN apt-get update && \
-    apt-get install -y default-jre-headless && \
-    apt-get clean && \ 
-    rm -rf /var/lib/apt/lists/*
+    apt-get install -y --no-install-recommends \
+        default-jre-headless \
+        # Tools để debug
+        procps \
+        netcat-traditional \
+        curl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Chuyển lại sang user airflow để thực hiện các thao tác của Airflow
+# Set JAVA_HOME (một số Spark jobs cần)
+ENV JAVA_HOME=/usr/lib/jvm/default-java
+ENV PATH=$PATH:$JAVA_HOME/bin
+
+# Chuyển lại sang user airflow
 USER airflow
 
-# Cài đặt gói provider cho Apache Spark, sử dụng file ràng buộc để đảm bảo tương thích
-RUN pip install --no-cache-dir \
-    "apache-airflow-providers-apache-spark" \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.9.2/constraints-3.12.txt"
+# Cài đặt Python packages
+# LƯU Ý: PySpark version phải match với Spark cluster version
+RUN pip install --no-cache-dir "apache-airflow-providers-apache-spark" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.9.2/constraints-3.12.txt"
+
+RUN pip install --no-cache-dir "pyspark==3.5.1"
+
+# Optional: Set Spark environment variables
+ENV PYSPARK_PYTHON=python3
+ENV PYSPARK_DRIVER_PYTHON=python3
