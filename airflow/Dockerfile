@@ -30,10 +30,11 @@ RUN wget -q https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-$
 RUN chown -R airflow:root ${SPARK_HOME}
 
 # Set all required environment variables
-ENV JAVA_HOME=/usr/lib/jvm/default-java
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 ENV SPARK_CONF_DIR=${SPARK_HOME}/conf
 # SỬA LỖI: Thêm JAVA_HOME/bin vào PATH
-ENV PATH=${PATH}:${SPARK_HOME}/bin:${JAVA_HOME}/bin
+ENV PATH=${PATH}:${SPARK_HOME}/bin:${SPARK_HOME}/sbin:${JAVA_HOME}/bin
+
 
 # Chuyển lại sang user airflow
 USER airflow
