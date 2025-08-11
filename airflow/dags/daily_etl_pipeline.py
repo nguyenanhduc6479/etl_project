@@ -58,11 +58,11 @@ with DAG(
         java_class="mainCode.mainApp",
         
         # Delta lake package
-        # packages="io.delta:delta-spark_2.12:3.1.0",
+        packages="io.delta:delta-spark_2.12:3.1.0",
         
         # Cấu hình cho Spark, đặc biệt là cho Delta Lake
         conf={
-            # "spark.master": "spark://spark-master:7077",
+            "spark.master": "spark://spark-master:7077",
             "spark.sql.extensions": "io.delta.sql.DeltaSparkSessionExtension",
             "spark.sql.catalog.spark_catalog": "org.apache.spark.sql.delta.catalog.DeltaCatalog",
             "spark.sql.adaptive.enabled": "true",
