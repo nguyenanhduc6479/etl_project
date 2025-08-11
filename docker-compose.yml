@@ -189,12 +189,15 @@ services:
       - ./spark-data/app:/opt/bitnami/spark/app
       - ./spark-data/jars:/opt/bitnami/spark/external-jars
       - ./data:/data
+      - ./spark-data/eventlogs:/opt/bitnami/spark/eventlogs
     environment:
       - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-Aa12345}@postgres-airflow-db:5432/${AIRFLOW_DB:-airflow}
       - AIRFLOW__CELERY__BROKER_URL=redis://redis:6379/0
       - AIRFLOW__CELERY__RESULT_BACKEND=db+postgresql://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-Aa12345}@postgres-airflow-db:5432/${AIRFLOW_DB:-airflow}
       - AIRFLOW_CONN_SPARK_DEFAULT=spark://spark-master:7077
+      - SPARK_HOME=/opt/spark
+      - JAVA_HOME=/usr/lib/jvm/default-java
     command: airflow celery worker
     networks:
       - data-net
