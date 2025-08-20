@@ -1,66 +1,38 @@
-# Bắt đầu từ image Airflow chính thức
-FROM apache/airflow:2.9.2
- 
-# Chuyển sang user root để có quyền cài đặt các gói hệ thống
+# -------- Stage 1: Lấy Spark từ Bitnami (ổn định, không cần curl) --------
+FROM bitnami/spark:3.5.1 AS sparkdist
+
+# -------- Stage 2: Ảnh Airflow có sẵn Spark CLI --------
+FROM apache/airflow:2.9.2-python3.12
+
+# OS + JRE cho Spark
 USER root
- 
-# Cài đặt Java và các tools hữu ích
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        default-jre-headless \
-        procps \
-        netcat-traditional \
-        curl \
-        wget \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
- 
-# Download và cài đặt Spark (QUAN TRỌNG để có SPARK_HOME)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    openjdk-17-jre-headless procps ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
 
-ARG SPARK_VERSION=3.5.1
-ARG HADOOP_VERSION=3
-
-ENV SPARK_VERSION=${SPARK_VERSION}
-ENV HADOOP_VERSION=${HADOOP_VERSION}
+# Copy Spark từ stage 1
+COPY --from=sparkdist /opt/bitnami/spark /opt/spark
 ENV SPARK_HOME=/opt/spark
- 
-# SỬA LỖI: Sử dụng link tải ổn định hơn từ archive.apache.org
-RUN wget -q https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz && \
-    tar -xzf spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz && \
-    mv spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION} ${SPARK_HOME} && \
-    rm spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz
- 
-# Set ownership
-RUN chown -R airflow:root ${SPARK_HOME}
- 
-# Set all required environment variables
+
+# *** PATH CHUẨN CHO ENTRYPOINT (root) VÀ USER airflow ***
+# Bổ sung rõ ràng /usr/local/bin và /home/airflow/.local/bin để 'airflow' luôn được tìm thấy
+ENV PATH="/opt/spark/bin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/airflow/.local/bin"
 ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-ENV SPARK_CONF_DIR=${SPARK_HOME}/conf
-# SỬA LỖI: Thêm JAVA_HOME/bin vào PATH
-ENV PATH=${PATH}:${SPARK_HOME}/bin:${SPARK_HOME}/sbin:${JAVA_HOME}/bin
- 
- 
-# Chuyển lại sang user airflow
+
+# Quyền
+RUN mkdir -p /opt/airflow/scripts && chown -R airflow:root /opt/spark /opt/airflow
+
+# ---- Python deps dưới user airflow + dùng constraints để pin version provider ----
 USER airflow
- 
-# Cài đặt Python packages
-# Thêm file ràng buộc để đảm bảo tính tương thích
+ARG AIRFLOW_VERSION=2.9.2
+ARG PYTHON_VERSION=3.12
+ENV PIP_CONSTRAINT="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
 
-RUN pip install --no-cache-dir \
-    "apache-airflow-providers-apache-spark" \
-    "pyspark==${SPARK_VERSION}" \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.9.2/constraints-3.12.txt"
+COPY --chown=airflow:root requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt --constraint "${PIP_CONSTRAINT}"
 
-# Set Python environment for PySpark
-ENV PYSPARK_PYTHON=python3
-ENV PYSPARK_DRIVER_PYTHON=python3
+# Init script
+COPY --chown=airflow:root scripts/init.sh /opt/airflow/scripts/init.sh
+RUN sed -i 's/\r$//' /opt/airflow/scripts/init.sh && chmod +x /opt/airflow/scripts/init.sh
 
-# Verify installation
-USER root
-RUN echo "Checking installations..." && \
-    echo "SPARK_HOME: ${SPARK_HOME}" && \
-    echo "JAVA_HOME: ${JAVA_HOME}" && \
-    echo "PATH: ${PATH}" && \
-    which spark-submit && \
-    su airflow -c "spark-submit --version"
 USER airflow

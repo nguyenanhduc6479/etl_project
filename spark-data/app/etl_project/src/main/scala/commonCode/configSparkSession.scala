@@ -10,7 +10,6 @@ object configSparkSession {
     if (spark.isEmpty) {
       val builder = SparkSession.builder()
         .appName(appName)
-        .master("spark://spark-master:7077")
 
 
       extraConfigs.foreach {

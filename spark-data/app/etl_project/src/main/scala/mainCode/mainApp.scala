@@ -5,20 +5,16 @@ import org.apache.spark.sql.{SparkSession, DataFrame}
 
 object mainApp {
   def main(args: Array[String]): Unit = {
-    val sourcePath: String = "C:/Study_DE/etl_project/data/log_content/20220402.json"
+    if(args.length < 2)
+      {
+        println("sourcePath and savePath are invalid")
 
-    val savePath: String = "C:/Study_DE/etl_project/data/log_result/20220402"
+        sys.exit(1)
+      }
 
-//    if(args.length < 2)
-//      {
-//        println("sourcePath and savePath are invalid")
-//
-//        sys.exit(1)
-//      }
+    val sourcePath = args(0)
 
-//    val sourcePath = args(0)
-//
-//    val savePath = args(1)
+    val savePath = args(1)
 
     implicit val spark: SparkSession = configSparkSession.createSparkSession(
       appName = "project",
