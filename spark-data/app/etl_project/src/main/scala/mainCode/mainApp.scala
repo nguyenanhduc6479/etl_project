@@ -11,6 +11,10 @@ object mainApp {
 
         sys.exit(1)
       }
+    else
+      {
+        println("sourcePath and savePath are valid")
+      }
 
     val sourcePath = args(0)
 

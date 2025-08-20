@@ -17,6 +17,8 @@ if [[ -n "${AIRFLOW_USER_USERNAME:-}" && -n "${AIRFLOW_USER_PASSWORD:-}" ]]; the
 fi
 
 # 4) Tạo connection spark_default trong DB (tránh env override)
-airflow connections delete spark_default >/dev/null 2>&1 || true
-airflow connections add spark_default --conn-type spark --conn-host spark-master --conn-port 7077
+SPARK_MASTER_URL="${SPARK_MASTER_URL:-spark://spark-master:7077}"
+while airflow connections delete spark_default >/dev/null 2>&1; do :; done || true
+airflow connections add spark_default --conn-type spark --conn-host "spark://spark-master:7077"
+airflow connections get spark_default
 echo "Init done."
