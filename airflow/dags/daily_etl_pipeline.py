@@ -29,18 +29,18 @@ with DAG(
     - **Đích:** Delta Lake table.
     - **Mô tả:** DAG này chịu trách nhiệm điều phối Spark job để xử lý file log JSON của ngày hôm đó và ghi kết quả vào Delta Lake.
     """,
-) as dag:
+) as dag :
     
     # Task 1: Kiểm tra file JSON tồn tại
     check_source_file = BashOperator(
         task_id = "check_source_file_exists",
         bash_command = """
-        FILE_PATH = "/data/log_content/20220402.json"
+        FILE_PATH="/data/log_content/20220402.json"
         if [ -f "$FILE_PATH" ]; then
-            echo "Source file exists: $FILE_PATH"
+            echo "Source file exists : $FILE_PATH"
             ls -la "$FILE_PATH"
         else
-            echo "ERROR : Source file not found: $FILE_PATH"
+            echo "ERROR : Source file not found : $FILE_PATH"
             exit 1
         fi
         """,
