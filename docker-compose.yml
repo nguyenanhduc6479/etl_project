@@ -8,6 +8,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DWH_DB}
       POSTGRES_USER: ${POSTGRES_DWH_USER}
       POSTGRES_PASSWORD: ${POSTGRES_DWH_PASSWORD}
+      TZ: Asia/Ho_Chi_Minh
+    command: ["postgres", "-c","timezone=Asia/Ho_Chi_Minh", "-c","log_timezone=Asia/Ho_Chi_Minh"]
     ports:
       - "${POSTGRES_DWH_PORT}:5432"
     volumes:
@@ -74,8 +76,10 @@ services:
       POSTGRES_DB: ${AIRFLOW_DB}
       POSTGRES_USER: ${AIRFLOW_USER_USERNAME}
       POSTGRES_PASSWORD: ${AIRFLOW_USER_PASSWORD}
+      TZ: Asia/Ho_Chi_Minh
     volumes:
       - postgres-airflow-data:/var/lib/postgresql/data
+    command: ["postgres", "-c","timezone=Asia/Ho_Chi_Minh", "-c","log_timezone=Asia/Ho_Chi_Minh"]
     networks: [data-net]
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "${AIRFLOW_USER_USERNAME:-airflow}"]
@@ -207,8 +211,10 @@ services:
       POSTGRES_DB: ${SUPERSET_DB}
       POSTGRES_USER: ${SUPERSET_USER_USERNAME}
       POSTGRES_PASSWORD: ${SUPERSET_USER_PASSWORD}
+      TZ: Asia/Ho_Chi_Minh
     volumes:
       - postgres-superset-data:/var/lib/postgresql/data
+    command: ["postgres", "-c","timezone=Asia/Ho_Chi_Minh", "-c","log_timezone=Asia/Ho_Chi_Minh"]
     networks: [data-net]
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "${SUPERSET_USER_USERNAME}"]
