@@ -239,10 +239,11 @@ services:
       ADMIN_EMAIL: ${SUPERSET_ADMIN_EMAIL}
       ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD}
     volumes:
-      - ./superset/pythonpath:/app/pythonpath:ro
-      - ./superset/scripts:/app/scripts:ro
+      - ./superset/app/pythonpath:/app/pythonpath:ro
+      - ./superset/app/scripts:/app/scripts:ro
       - superset-home:/app/superset_home
     command: ["/bin/bash","-lc","/app/scripts/init.sh"]
+    #command: ["python","/app/scripts/init.py"]
     networks: [data-net]
     restart: "no"
 
@@ -263,8 +264,9 @@ services:
       SUPERSET_USER_PASSWORD: ${SUPERSET_USER_PASSWORD}
       SUPERSET_DB_HOST: postgres-superset-db
     volumes:
+      - ./superset/app/pythonpath:/app/pythonpath:ro
+      - ./superset/app/scripts:/app/scripts:ro
       - superset-home:/app/superset_home
-      - ./superset/pythonpath:/app/pythonpath:ro
     networks: [data-net]
     restart: always
 
