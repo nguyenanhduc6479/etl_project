@@ -15,6 +15,49 @@ services:
     volumes:
       - postgres-dwh-data:/var/lib/postgresql/data
     networks: [data-net]
+    
+  #----------------------HDFS -----------------------------
+  hdfs-namenode:
+    image: apache/hadoop:3
+    container_name: hdfs-namenode
+    hostname: hdfs-namenode
+    user: "0:0"
+    restart: always
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
+      - HADOOP_ROOT_LOGGER=INFO,console
+      - HADOOP_CONF_DIR=/opt/hadoop/etc/hadoop
+    ports:
+      - "9870:9870"      # namenode web UI
+      - "9000:9000"      # namenode RPC (fs.defaultFS)
+    volumes:
+      - ./hadoop/conf:/opt/hadoop/etc/hadoop:ro
+      - hdfs-name:/hadoop/dfs/name
+      - ./hadoop/scripts:/opt/bootstrap:ro
+      - ./hadoop/logs:/opt/hadoop/logs
+    command: ["/bin/bash","-lc","bash /opt/bootstrap/namenode-init.sh"]
+    networks: [data-net]
+
+  hdfs-datanode-1:
+    image: apache/hadoop:3
+    container_name: hdfs-datanode-1
+    hostname: hdfs-datanode-1
+    user: "0:0"
+    depends_on: [hdfs-namenode]
+    restart: always
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
+      - HADOOP_ROOT_LOGGER=INFO,console
+      - HADOOP_CONF_DIR=/opt/hadoop/etc/hadoop
+    ports:
+      - "9864:9864"      # datanode web UI
+    volumes:
+      - ./hadoop/conf:/opt/hadoop/etc/hadoop:ro
+      - hdfs-data-1:/hadoop/dfs/data
+      - ./hadoop/scripts:/opt/bootstrap:ro
+      - ./hadoop/logs:/opt/hadoop/logs
+    command: ["/bin/bash","-lc","bash /opt/bootstrap/datanode-1-init.sh"]
+    networks: [data-net]   
 
   #---------------------- Spark Standalone ----------------------
   spark-master:
@@ -29,9 +72,11 @@ services:
       - ./spark-data/jars:/opt/bitnami/spark/external-jars
       - ./spark-data/eventlogs:/opt/bitnami/spark/eventlogs
       - ./data:/data
+      - ./hadoop/conf:/opt/hadoop-conf:ro
     environment:
       - SPARK_MODE=master
       - SPARK_MASTER_HOST=spark-master
+      - HADOOP_CONF_DIR=/opt/hadoop-conf
     networks: [data-net]
 
   spark-worker:
@@ -46,11 +91,13 @@ services:
       - ./spark-data/jars:/opt/bitnami/spark/external-jars
       - ./spark-data/eventlogs:/opt/bitnami/spark/eventlogs
       - ./data:/data
+      - ./hadoop/conf:/opt/hadoop-conf:ro
     environment:
       - SPARK_MODE=worker
       - SPARK_MASTER_URL=spark://spark-master:7077
       - SPARK_WORKER_CORES=${SPARK_WORKER_CORES}
       - SPARK_WORKER_MEMORY=${SPARK_WORKER_MEMORY}
+      - HADOOP_CONF_DIR=/opt/hadoop-conf
     networks: [data-net]
 
   spark-history-server:
@@ -189,6 +236,7 @@ services:
       AIRFLOW__CORE__TEST_CONNECTION: Enabled
       AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_WEBSERVER_SECRET_KEY}
       AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_CORE_FERNET_KEY}
+      HADOOP_CONF_DIR : /opt/hadoop-conf
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./airflow/logs:/opt/airflow/logs
@@ -198,6 +246,7 @@ services:
       - ./spark-data/eventlogs:/opt/bitnami/spark/eventlogs
       - ./data:/data
       - ./spark-cache/ivy2:/home/airflow/.ivy2
+      - ./hadoop/conf:/opt/hadoop-conf:ro
     command: ["airflow", "celery", "worker"]
     networks: [data-net]
     
@@ -280,3 +329,5 @@ volumes:
   postgres-airflow-data:
   postgres-superset-data:
   superset-home:
+  hdfs-name:
+  hdfs-data-1:
