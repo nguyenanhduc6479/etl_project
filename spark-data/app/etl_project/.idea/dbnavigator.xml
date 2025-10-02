@@ -40,9 +40,7 @@
     <last-used-providers />
   </component>
   <component name="DBNavigator.Project.DatabaseFileManager">
-    <open-files>
-      <object connection-id="21c3abfb-bce3-4a67-891c-ad6835620e4a" object-ref="consoles/postgres" />
-    </open-files>
+    <open-files />
   </component>
   <component name="DBNavigator.Project.DatabaseSessionManager">
     <connection id="21c3abfb-bce3-4a67-891c-ad6835620e4a" />
